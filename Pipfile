@@ -1,0 +1,16 @@
+[[source]]
+
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[dev-packages]
+
+
+
+[packages]
+
+ansible = "==2.4.3.0"
+dopy = "==0.3.7"
+dnsimple = "==1.0.2"

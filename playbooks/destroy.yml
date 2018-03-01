@@ -1,0 +1,46 @@
+---
+- hosts: minecraft
+  user: root
+
+  vars_files:
+    - ../vars/credentials.yml
+    - ../vars/server.yml
+
+  tasks:
+    - name: Shutdown Minecraft server
+      service:
+        name: minecraft
+        state: stopped
+
+    - name: Unmount shared volume
+      mount:
+        path: "{{ minecraft_home | dirname }}"
+        state: unmounted
+
+    - name: Destroy DigitalOcean server
+      digital_ocean:
+        state: absent
+        api_token: "{{ credentials.digital_ocean.api_key }}"
+        command: droplet
+        name: "{{ server.name }}"
+        unique_name: yes
+        wait: yes
+      delegate_to: localhost
+
+    - name: Destroy inventory
+      file:
+        path: ../inventory
+        state: absent
+      delegate_to: localhost
+
+    - name: Remove hostname from DNSimple
+      dnsimple:
+        account_email: "{{ credentials.dnsimple.email }}"
+        account_api_token: "{{ credentials.dnsimple.api_key }}"
+        domain: "{{ dns.domain }}"
+        record: "{{ dns.hostname }}"
+        type: A
+        value: "{{ ansible_default_ipv4.address }}"
+        state: absent
+      delegate_to: localhost
+      when: "credentials.dnsimple.email is defined and credentials.dnsimple.api_key is defined"

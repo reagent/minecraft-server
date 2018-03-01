@@ -1,0 +1,128 @@
+---
+- hosts: localhost
+
+  vars_files:
+    - ../vars/credentials.yml
+    - ../vars/server.yml
+
+  tasks:
+    - name: Check for API key 
+      assert:
+        that: "credentials.digital_ocean.api_key is defined"
+        msg: Please ensure `credentials.digital_ocean.api_key` is defined in `host_vars/localhost/credentials`
+
+    - name: Ensure public key exists on DigitalOcean
+      digital_ocean_sshkey: 
+        oauth_token: "{{ credentials.digital_ocean.api_key }}"
+        name: "{{ server.ssh_key_name }}"
+        ssh_pub_key: "{{ lookup('file', '../keys/ansible.pub') }}"
+      register: public_key_create
+
+    - name: Provision a new Ubuntu DigitalOcean Server
+      digital_ocean:
+        state: present
+        api_token: "{{ credentials.digital_ocean.api_key }}"
+        command: droplet
+        image_id: "{{ server.image_id }}"
+        region_id: "{{ server.region_id }}"
+        size_id: "{{ server.size_id }}"
+        ssh_key_ids: 
+          - "{{ public_key_create.data.ssh_key.id }}"
+        name: "{{ server.name }}"
+        unique_name: yes
+        wait: yes
+      register: server_create
+
+    - name: Create a new volume
+      digital_ocean_block_storage:
+        api_token: "{{ credentials.digital_ocean.api_key }}"
+        block_size: "{{ volume.block_size }}"
+        command: create
+        region: "{{ server.region_id }}"
+        state: present
+        volume_name: "{{ volume.name }}"
+
+    - name: Attach volume to created server
+      digital_ocean_block_storage:
+        api_token: "{{ credentials.digital_ocean.api_key }}"
+        region: "{{ server.region_id }}"
+        command: attach
+        state: present
+        volume_name: "{{ volume.name }}"
+        droplet_id: "{{ server_create.droplet.id }}"
+
+    - name: Add new server to static inventory file
+      template:
+        src: ../templates/inventory.j2
+        dest: ../inventory
+
+    - name: Add new server to in-memory inventory
+      add_host:
+        name: minecraft
+        ansible_ssh_host: "{{ server_create.droplet.ip_address }}"
+        ansible_python_interpreter: /usr/bin/python2.7
+      changed_when: False
+
+    - name: Register hostname with DNSimple
+      dnsimple:
+        account_email: "{{ credentials.dnsimple.email }}"
+        account_api_token: "{{ credentials.dnsimple.api_key }}"
+        domain: "{{ dns.domain }}"
+        record: "{{ dns.hostname }}"
+        type: A
+        ttl: "{{ dns.ttl }}"
+        solo: yes
+        value: "{{ server_create.droplet.ip_address }}"
+        state: present
+      when: "credentials.dnsimple.email is defined and credentials.dnsimple.api_key is defined"
+
+    - name: Wait for SSH to come up
+      wait_for:
+        host: "{{ server_create.droplet.ip_address }}"
+        port: 22 
+        delay: 30
+        timeout: 320
+        state: started
+
+- hosts: minecraft
+  user: root
+  gather_facts: false
+
+  tasks:
+    - name: Install Python 2.x
+      raw: test -e /usr/bin/python2.7 || (apt update && apt install -y python2.7)
+      register: python_install
+      changed_when: python_install.stdout
+
+- hosts: minecraft
+  user: root
+
+  vars_files:
+    - ../vars/server.yml
+
+  vars:
+    device_path: "/dev/disk/by-id/scsi-0DO_Volume_{{ volume.name }}"
+
+  pre_tasks:
+    - name: Partition block storage device
+      parted:
+        align: optimal
+        device: "{{ device_path }}"
+        part_start: "0%"
+        part_end: "100%"
+        part_type: primary
+
+    - name: Make filesystem on device
+      filesystem:
+        fstype: ext4
+        dev: "{{ device_path }}"
+
+    - name: Mount block storage on Minecraft data directory
+      mount:
+        path: "{{ minecraft_home | dirname }}"
+        src: "{{ device_path }}"
+        state: mounted
+        fstype: ext4
+
+  roles:
+    - devops-coop.minecraft
