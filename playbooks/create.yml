@@ -74,7 +74,12 @@
         solo: yes
         value: "{{ server_create.droplet.ip_address }}"
         state: present
-      when: "credentials.dnsimple.email is defined and credentials.dnsimple.api_key is defined"
+      when:
+        - dns is defined
+        - credentials is defined
+        - credentials.dnsimple is defined
+        - credentials.dnsimple.email is defined
+        - credentials.dnsimple.api_key is defined
 
     - name: Wait for SSH to come up
       wait_for:

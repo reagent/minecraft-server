@@ -43,4 +43,11 @@
         value: "{{ ansible_default_ipv4.address }}"
         state: absent
       delegate_to: localhost
-      when: "credentials.dnsimple.email is defined and credentials.dnsimple.api_key is defined"
+      when:
+        - dns is defined
+        - dns.domain is defined
+        - dns.hostname is defined
+        - credentials is defined
+        - credentials.dnsimple is defined
+        - credentials.dnsimple.email is defined
+        - credentials.dnsimple.api_key is defined
