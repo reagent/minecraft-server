@@ -68,9 +68,9 @@
         account_email: "{{ credentials.dnsimple.email }}"
         account_api_token: "{{ credentials.dnsimple.api_key }}"
         domain: "{{ dns.domain }}"
-        record: "{{ dns.hostname }}"
+        record: "{{ dns.hostname | default(server.name) }}"
         type: A
-        ttl: "{{ dns.ttl }}"
+        ttl: "{{ dns.ttl | default(300) }}"
         solo: yes
         value: "{{ server_create.droplet.ip_address }}"
         state: present
