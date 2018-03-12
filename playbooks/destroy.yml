@@ -38,7 +38,7 @@
         account_email: "{{ credentials.dnsimple.email }}"
         account_api_token: "{{ credentials.dnsimple.api_key }}"
         domain: "{{ dns.domain }}"
-        record: "{{ dns.hostname }}"
+        record: "{{ dns.hostname | default(server.name) }}"
         type: A
         value: "{{ ansible_default_ipv4.address }}"
         state: absent
@@ -46,7 +46,6 @@
       when:
         - dns is defined
         - dns.domain is defined
-        - dns.hostname is defined
         - credentials is defined
         - credentials.dnsimple is defined
         - credentials.dnsimple.email is defined
