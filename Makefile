@@ -18,4 +18,4 @@ init: vars/credentials.yml vars/server.yml
 setup: init
 	pip install -U -r requirements.txt
 	pipenv install
-	ansible-galaxy install -r requirements.yml
+	pipenv run ansible-galaxy install -r requirements.yml
