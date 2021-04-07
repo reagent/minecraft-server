@@ -11,6 +11,6 @@ name = "pypi"
 
 [packages]
 
-ansible = "==2.6.1"
+ansible = "==2.10.0"
 dopy = "==0.3.7"
 dnsimple = "==1.0.2"
