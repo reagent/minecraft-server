@@ -1,9 +1,9 @@
 ---
 server:
   ssh_key_name: "Ansible / Minecraft"
-  image: ubuntu-16-04-x64
+  image: ubuntu-22-04-x64
   region: sfo2
-  size: 2gb
+  size: s-2vcpu-2gb
   name: minecraft
 volume:
   block_size: 10

@@ -62,7 +62,7 @@ Stops the `minecraft` service, unmounts the volume, destroys the droplet (`deleg
 
 ## Gotchas
 
-- The playbooks target Ubuntu 16.04 (`image: ubuntu-16-04-x64` in `.templates/server.yml`). DigitalOcean has since deprecated that image slug; if provisioning fails with an image-not-found error, update `vars/server.yml` to a supported slug rather than patching the playbook.
+- The default template targets Ubuntu 22.04 LTS (`image: ubuntu-22-04-x64`). 24.04 also works; bump when 22.04 nears its April 2027 standard-support end. DO periodically deprecates old slugs — see https://slugs.do-api.dev/ for current options.
 - The `community.digitalocean` collection is marked deprecated upstream and will be removed from Ansible 13. No drop-in replacement yet — keep an eye on `digitalocean.cloud` (official vendor collection) as a future migration path.
-- `make setup` runs `pip install -U -r requirements.txt` against the ambient Python, which installs `pipenv==10.1.2` globally. If a newer pipenv is already installed system-wide, this can downgrade it.
+- `make setup` runs `pip install -U -r requirements.txt` against the ambient Python, which installs/upgrades `pipenv` (pinned to `>=2024.0`) globally. Downgrade risk of the previous `==10.1.2` pin is gone; the remaining rough edge is that it's a global install rather than an isolated tool install via pipx. #14 tracks moving off pipenv entirely.
 - Relative paths in playbooks (`../vars/...`, `../keys/...`, `../templates/...`, `../inventory`) assume playbooks are run from the repo root, which is what `make` does. Running `ansible-playbook` from inside `playbooks/` will not work.
