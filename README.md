@@ -120,3 +120,38 @@ It's important to shut down the Minecraft server process and unmount the Block S
 ```
 $ make destroy
 ```
+
+## Provisioning via GitHub Actions
+
+Three workflows under `.github/workflows/` let anyone with repo write access spin up and tear down a session server without cloning the repo locally.
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `provision.yml` | Manual (`workflow_dispatch`) | Create droplet, attach `minecraft-data` volume, install server. Inputs: region, size, `duration_hours` (used for auto-destroy). |
+| `destroy.yml` | Manual (`workflow_dispatch`) | Stop service, unmount volume, destroy droplet, remove DNS record. |
+| `auto-destroy.yml` | Cron (`*/15 * * * *`) | Inspect live droplet's `expires-<unix>` tag and run the destroy flow once the TTL has passed. |
+
+All three share concurrency group `minecraft-server` so they cannot race each other. `provision.yml` and `destroy.yml` are gated on the `minecraft-server` GitHub Environment so an explicit reviewer click is required — `auto-destroy.yml` is not gated since it runs unattended.
+
+### Required repository secrets
+
+| Secret | Purpose |
+|--------|---------|
+| `DO_API_KEY` | DigitalOcean API token (same scopes as for local `make provision`). |
+| `DNSIMPLE_ACCOUNT_EMAIL` | DNSimple account email. |
+| `DNSIMPLE_ACCOUNT_API_TOKEN` | DNSimple API token. |
+| `DNSIMPLE_DOMAIN` | Apex domain that will host the `minecraft.<domain>` A record. |
+| `ANSIBLE_SSH_PRIVATE_KEY` | Persistent SSH private key the workflows use to manage the droplet. Generate once with `ssh-keygen -t ed25519 -N '' -f keys/ansible -C minecraft-ci` locally and copy the file contents into the secret. |
+| `ANSIBLE_SSH_PUBLIC_KEY` | Matching public key. |
+
+### One-time GitHub setup
+
+1. **Repository → Settings → Environments**: create `minecraft-server`, add yourself (and any other write-access users) under **Required reviewers**.
+2. **Repository → Settings → Secrets and variables → Actions**: add the secrets above.
+3. (Optional) Restrict `workflow_dispatch` to specific actors via branch protection / environment policies if the repo is public.
+
+### Running
+
+- **Provision**: Actions → *Provision Minecraft server* → *Run workflow* → choose region/size/duration → approve in the environment prompt → workflow summary contains the FQDN, IP, and expiry timestamp.
+- **Destroy early**: Actions → *Destroy Minecraft server* → *Run workflow* → approve.
+- **Auto-destroy**: nothing to do; cron polls every 15 min and tears down once `now >= expires-<unix>`.

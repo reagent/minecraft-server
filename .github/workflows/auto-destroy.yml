@@ -1,0 +1,131 @@
+name: Auto-destroy expired Minecraft server
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: minecraft-server
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check-expiry:
+    runs-on: ubuntu-latest
+    outputs:
+      expired: ${{ steps.check.outputs.expired }}
+      ip: ${{ steps.check.outputs.ip }}
+    steps:
+      - name: Look up droplet and parse expiry tag
+        id: check
+        env:
+          DO_API_KEY: ${{ secrets.DO_API_KEY }}
+        run: |
+          DROPLET=$(curl -fsS -H "Authorization: Bearer ${DO_API_KEY}" \
+            'https://api.digitalocean.com/v2/droplets?tag_name=ansible-on-demand' \
+            | jq '.droplets[] | select(.name == "minecraft")' | jq -s '.[0]')
+          if [ "$DROPLET" = "null" ] || [ -z "$DROPLET" ]; then
+            echo "No droplet tagged ansible-on-demand."
+            echo "expired=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          EXPIRES_AT=$(echo "$DROPLET" | jq -r '.tags[] | select(startswith("expires-"))' | sed 's/^expires-//' | head -1)
+          IP=$(echo "$DROPLET" | jq -r '.networks.v4[] | select(.type=="public") | .ip_address')
+          NOW=$(date -u +%s)
+          if [ -z "$EXPIRES_AT" ]; then
+            echo "Droplet has no expires-<unix> tag — leaving alone."
+            echo "expired=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Now: ${NOW}, expires: ${EXPIRES_AT}"
+          if [ "$NOW" -ge "$EXPIRES_AT" ]; then
+            echo "expired=true" >> "$GITHUB_OUTPUT"
+            echo "ip=${IP}" >> "$GITHUB_OUTPUT"
+          else
+            echo "expired=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  destroy:
+    needs: check-expiry
+    if: needs.check-expiry.outputs.expired == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipenv and Ansible deps
+        run: |
+          pip install -U -r requirements.txt
+          pipenv install
+          pipenv run ansible-galaxy install -r requirements.yml
+
+      - name: Write SSH keypair
+        env:
+          ANSIBLE_SSH_PRIVATE_KEY: ${{ secrets.ANSIBLE_SSH_PRIVATE_KEY }}
+          ANSIBLE_SSH_PUBLIC_KEY: ${{ secrets.ANSIBLE_SSH_PUBLIC_KEY }}
+        run: |
+          mkdir -p keys
+          printf '%s\n' "$ANSIBLE_SSH_PRIVATE_KEY" > keys/ansible
+          printf '%s\n' "$ANSIBLE_SSH_PUBLIC_KEY" > keys/ansible.pub
+          chmod 600 keys/ansible
+          chmod 644 keys/ansible.pub
+
+      - name: Generate vars/credentials.yml
+        env:
+          DO_API_KEY: ${{ secrets.DO_API_KEY }}
+          DNSIMPLE_ACCOUNT_EMAIL: ${{ secrets.DNSIMPLE_ACCOUNT_EMAIL }}
+          DNSIMPLE_ACCOUNT_API_TOKEN: ${{ secrets.DNSIMPLE_ACCOUNT_API_TOKEN }}
+        run: |
+          mkdir -p vars
+          cat > vars/credentials.yml <<EOF
+          ---
+          credentials:
+            digital_ocean:
+              api_key: "${DO_API_KEY}"
+            dnsimple:
+              account_email: "${DNSIMPLE_ACCOUNT_EMAIL}"
+              account_api_token: "${DNSIMPLE_ACCOUNT_API_TOKEN}"
+          EOF
+          chmod 600 vars/credentials.yml
+
+      - name: Generate vars/server.yml
+        env:
+          DNSIMPLE_DOMAIN: ${{ secrets.DNSIMPLE_DOMAIN }}
+        run: |
+          cat > vars/server.yml <<EOF
+          ---
+          server:
+            ssh_key_name: "Minecraft CI"
+            name: minecraft
+          volume:
+            name: minecraft-data
+          dns:
+            domain: "${DNSIMPLE_DOMAIN}"
+            hostname: minecraft
+            ttl: 300
+          minecraft_home: /srv/minecraft
+          EOF
+
+      - name: Build inventory
+        run: echo "minecraft ansible_ssh_host=${{ needs.check-expiry.outputs.ip }} ansible_ssh_user=root" > inventory
+
+      - name: Destroy droplet
+        run: pipenv run ansible-playbook playbooks/destroy.yml
+
+      - name: Write summary
+        run: |
+          {
+            echo "## Auto-destroyed expired Minecraft droplet"
+            echo
+            echo "- IP: \`${{ needs.check-expiry.outputs.ip }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
