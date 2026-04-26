@@ -13,7 +13,7 @@
         state: stopped
 
     - name: Unmount shared volume
-      mount:
+      ansible.posix.mount:
         path: "{{ minecraft_home | dirname }}"
         state: unmounted
 

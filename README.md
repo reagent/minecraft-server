@@ -33,6 +33,22 @@ credentials:
     api_key: d34db33f
 ```
 
+#### DigitalOcean API token scopes
+
+The `community.digitalocean` modules call endpoints beyond the obvious ones — for example, `digital_ocean_droplet` queries `/v2/firewalls` even when the droplet is not associated with any firewall, so the token needs `firewall:read` or droplet creation will fail with "Failed to get firewalls: You are not authorized to perform this operation".
+
+Minimum required scopes for `make provision` and `make destroy`:
+
+| Resource | Scopes |
+|----------|--------|
+| `droplet` | `create`, `read`, `delete` |
+| `ssh_key` | `create`, `read` |
+| `block_storage` | `create`, `read`, `update` |
+| `firewall` | `read` |
+| `image` | `read` |
+
+If you hit a "not authorized" error on an unexpected endpoint, either add the corresponding scope or generate a "Full Access" token for throwaway testing. Always set a finite expiry (1 day / 1 week) rather than "No expiry".
+
 This playbook can also create a DNS entry using the [DNSimple](https://dnsimple.com) service.  If you are a a DNSimple customer, you can configure your credentials in `vars/credentials.yml` as well:
 
 ```yaml

@@ -98,7 +98,7 @@
 
   pre_tasks:
     - name: Partition block storage device
-      parted:
+      community.general.parted:
         align: optimal
         device: "{{ device_path }}"
         part_start: "0%"
@@ -106,12 +106,12 @@
         part_type: primary
 
     - name: Make filesystem on device
-      filesystem:
+      community.general.filesystem:
         fstype: ext4
         dev: "{{ device_path }}"
 
     - name: Mount block storage on Minecraft data directory
-      mount:
+      ansible.posix.mount:
         path: "{{ minecraft_home | dirname }}"
         src: "{{ device_path }}"
         state: mounted
