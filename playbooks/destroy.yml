@@ -18,10 +18,9 @@
         state: unmounted
 
     - name: Destroy DigitalOcean server
-      digital_ocean:
+      community.digitalocean.digital_ocean_droplet:
         state: absent
-        api_token: "{{ credentials.digital_ocean.api_key }}"
-        command: droplet
+        oauth_token: "{{ credentials.digital_ocean.api_key }}"
         name: "{{ server.name }}"
         unique_name: yes
         wait: yes

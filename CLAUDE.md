@@ -68,6 +68,7 @@ Vendored custom Ansible module for DNSimple DNS record management (used by both 
 
 ## Gotchas
 
-- The playbooks target Ubuntu 16.04 (`image_id: ubuntu-16-04-x64` in `.templates/server.yml`). DigitalOcean has since deprecated that image slug; if provisioning fails with an image-not-found error, update `vars/server.yml` to a supported slug rather than patching the playbook.
+- The playbooks target Ubuntu 16.04 (`image: ubuntu-16-04-x64` in `.templates/server.yml`). DigitalOcean has since deprecated that image slug; if provisioning fails with an image-not-found error, update `vars/server.yml` to a supported slug rather than patching the playbook.
+- The `community.digitalocean` collection is marked deprecated upstream and will be removed from Ansible 13. No drop-in replacement yet — keep an eye on `digitalocean.cloud` (official vendor collection) as a future migration path.
 - `make setup` runs `pip install -U -r requirements.txt` against the ambient Python, which installs `pipenv==10.1.2` globally. If a newer pipenv is already installed system-wide, this can downgrade it.
 - Relative paths in playbooks (`../vars/...`, `../keys/...`, `../templates/...`, `../inventory`) assume playbooks are run from the repo root, which is what `make` does. Running `ansible-playbook` from inside `playbooks/` will not work.
