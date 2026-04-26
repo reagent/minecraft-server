@@ -25,11 +25,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install pipenv and Ansible deps
+      - name: Install Ansible
         run: |
-          pip install -U -r requirements.txt
-          pipenv install
-          pipenv run ansible-galaxy install -r requirements.yml
+          pip install -U pip
+          pip install 'ansible-core~=2.18' dnsimple
+          ansible-galaxy install -r requirements.yml
 
       - name: Write SSH keypair
         env:
@@ -97,4 +97,4 @@ jobs:
             echo "Skipping — no inventory."
             exit 0
           fi
-          pipenv run ansible-playbook playbooks/destroy.yml
+          ansible-playbook playbooks/destroy.yml

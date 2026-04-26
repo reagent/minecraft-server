@@ -58,11 +58,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install pipenv and Ansible deps
+      - name: Install Ansible
         run: |
-          pip install -U -r requirements.txt
-          pipenv install
-          pipenv run ansible-galaxy install -r requirements.yml
+          pip install -U pip
+          pip install 'ansible-core~=2.18' dnsimple
+          ansible-galaxy install -r requirements.yml
 
       - name: Compute expiry timestamp
         id: expiry
@@ -136,7 +136,7 @@ jobs:
           EOF
 
       - name: Provision droplet
-        run: pipenv run ansible-playbook playbooks/create.yml
+        run: ansible-playbook playbooks/create.yml
 
       - name: Read droplet IP from inventory
         id: droplet
