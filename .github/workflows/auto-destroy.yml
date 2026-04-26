@@ -63,11 +63,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install pipenv and Ansible deps
+      - name: Install Ansible
         run: |
-          pip install -U -r requirements.txt
-          pipenv install
-          pipenv run ansible-galaxy install -r requirements.yml
+          pip install -U pip
+          pip install 'ansible-core~=2.18' dnsimple
+          ansible-galaxy install -r requirements.yml
 
       - name: Write SSH keypair
         env:
@@ -120,7 +120,7 @@ jobs:
         run: echo "minecraft ansible_ssh_host=${{ needs.check-expiry.outputs.ip }} ansible_ssh_user=root" > inventory
 
       - name: Destroy droplet
-        run: pipenv run ansible-playbook playbooks/destroy.yml
+        run: ansible-playbook playbooks/destroy.yml
 
       - name: Write summary
         run: |
