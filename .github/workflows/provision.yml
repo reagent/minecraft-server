@@ -118,7 +118,7 @@ jobs:
 
       - name: Generate vars/server.yml
         env:
-          DNSIMPLE_DOMAIN: ${{ secrets.DNSIMPLE_DOMAIN }}
+          DNSIMPLE_DOMAIN: ${{ vars.DNSIMPLE_DOMAIN }}
           REGION: ${{ inputs.region }}
           SIZE: ${{ inputs.size }}
           DURATION_HOURS: ${{ inputs.duration_hours }}
@@ -164,7 +164,7 @@ jobs:
 
       - name: Write workflow summary
         env:
-          DNSIMPLE_DOMAIN: ${{ secrets.DNSIMPLE_DOMAIN }}
+          DNSIMPLE_DOMAIN: ${{ vars.DNSIMPLE_DOMAIN }}
           WORLD: ${{ inputs.world }}
         run: |
           FQDN="${WORLD}.minecraft.${DNSIMPLE_DOMAIN}"

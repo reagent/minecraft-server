@@ -86,7 +86,7 @@ jobs:
       - name: Generate vars/server.yml
         if: steps.droplet.outputs.found == 'true'
         env:
-          DNSIMPLE_DOMAIN: ${{ secrets.DNSIMPLE_DOMAIN }}
+          DNSIMPLE_DOMAIN: ${{ vars.DNSIMPLE_DOMAIN }}
           WORLD: ${{ steps.droplet.outputs.world }}
         run: |
           cat > vars/server.yml <<EOF
