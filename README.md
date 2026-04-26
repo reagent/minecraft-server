@@ -140,14 +140,21 @@ All three share concurrency group `minecraft-server` so they cannot race each ot
 | `DO_API_KEY` | DigitalOcean API token (same scopes as for local `make provision`). |
 | `DNSIMPLE_ACCOUNT_EMAIL` | DNSimple account email. |
 | `DNSIMPLE_ACCOUNT_API_TOKEN` | DNSimple API token. |
-| `DNSIMPLE_DOMAIN` | Apex domain that will host the `minecraft.<domain>` A record. |
 | `ANSIBLE_SSH_PRIVATE_KEY` | Persistent SSH private key the workflows use to manage the droplet. Generate once with `ssh-keygen -t ed25519 -N '' -f keys/ansible -C minecraft-ci` locally and copy the file contents into the secret. |
 | `ANSIBLE_SSH_PUBLIC_KEY` | Matching public key. |
+
+### Required repository variables
+
+Variables (Settings → Secrets and variables → Actions → **Variables tab**) are non-sensitive — unlike secrets, their values are not masked in workflow logs or step summaries.
+
+| Variable | Purpose |
+|----------|---------|
+| `DNSIMPLE_DOMAIN` | Apex zone that hosts the `<world>.minecraft.<domain>` A record (e.g. `the-reagans.com`). |
 
 ### One-time GitHub setup
 
 1. **Repository → Settings → Environments**: create `minecraft-server`, add yourself (and any other write-access users) under **Required reviewers**.
-2. **Repository → Settings → Secrets and variables → Actions**: add the secrets above.
+2. **Repository → Settings → Secrets and variables → Actions**: add the secrets and variables above.
 3. (Optional) Restrict `workflow_dispatch` to specific actors via branch protection / environment policies if the repo is public.
 
 ### Running
