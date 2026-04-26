@@ -1,0 +1,160 @@
+name: Provision Minecraft server
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: DigitalOcean region
+        required: true
+        default: nyc3
+        type: choice
+        options:
+          - nyc3
+          - sfo3
+          - ams3
+          - fra1
+          - sgp1
+      size:
+        description: Droplet size
+        required: true
+        default: s-2vcpu-4gb
+        type: choice
+        options:
+          - s-2vcpu-2gb
+          - s-2vcpu-4gb
+          - s-4vcpu-8gb
+      duration_hours:
+        description: Auto-destroy after N hours
+        required: true
+        default: "4"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "4"
+          - "8"
+          - "12"
+          - "24"
+
+concurrency:
+  group: minecraft-server
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    environment: minecraft-server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipenv and Ansible deps
+        run: |
+          pip install -U -r requirements.txt
+          pipenv install
+          pipenv run ansible-galaxy install -r requirements.yml
+
+      - name: Compute expiry timestamp
+        id: expiry
+        run: |
+          DURATION=${{ inputs.duration_hours }}
+          EXPIRES_AT=$(( $(date -u +%s) + DURATION * 3600 ))
+          EXPIRES_HUMAN=$(date -u -d "@${EXPIRES_AT}" -Iseconds)
+          echo "epoch=${EXPIRES_AT}" >> "$GITHUB_OUTPUT"
+          echo "human=${EXPIRES_HUMAN}" >> "$GITHUB_OUTPUT"
+
+      - name: Write SSH keypair
+        env:
+          ANSIBLE_SSH_PRIVATE_KEY: ${{ secrets.ANSIBLE_SSH_PRIVATE_KEY }}
+          ANSIBLE_SSH_PUBLIC_KEY: ${{ secrets.ANSIBLE_SSH_PUBLIC_KEY }}
+        run: |
+          mkdir -p keys
+          printf '%s\n' "$ANSIBLE_SSH_PRIVATE_KEY" > keys/ansible
+          printf '%s\n' "$ANSIBLE_SSH_PUBLIC_KEY" > keys/ansible.pub
+          chmod 600 keys/ansible
+          chmod 644 keys/ansible.pub
+
+      - name: Generate vars/credentials.yml
+        env:
+          DO_API_KEY: ${{ secrets.DO_API_KEY }}
+          DNSIMPLE_ACCOUNT_EMAIL: ${{ secrets.DNSIMPLE_ACCOUNT_EMAIL }}
+          DNSIMPLE_ACCOUNT_API_TOKEN: ${{ secrets.DNSIMPLE_ACCOUNT_API_TOKEN }}
+        run: |
+          mkdir -p vars
+          cat > vars/credentials.yml <<EOF
+          ---
+          credentials:
+            digital_ocean:
+              api_key: "${DO_API_KEY}"
+            dnsimple:
+              account_email: "${DNSIMPLE_ACCOUNT_EMAIL}"
+              account_api_token: "${DNSIMPLE_ACCOUNT_API_TOKEN}"
+          EOF
+          chmod 600 vars/credentials.yml
+
+      - name: Generate vars/server.yml
+        env:
+          DNSIMPLE_DOMAIN: ${{ secrets.DNSIMPLE_DOMAIN }}
+          REGION: ${{ inputs.region }}
+          SIZE: ${{ inputs.size }}
+          DURATION_HOURS: ${{ inputs.duration_hours }}
+          EXPIRES_AT: ${{ steps.expiry.outputs.epoch }}
+        run: |
+          cat > vars/server.yml <<EOF
+          ---
+          server:
+            ssh_key_name: "Minecraft CI"
+            image: ubuntu-22-04-x64
+            region: "${REGION}"
+            size: "${SIZE}"
+            name: minecraft
+            tags:
+              - ansible-on-demand
+              - ttl-${DURATION_HOURS}h
+              - expires-${EXPIRES_AT}
+          volume:
+            block_size: 10
+            name: minecraft-data
+          dns:
+            domain: "${DNSIMPLE_DOMAIN}"
+            hostname: minecraft
+            ttl: 300
+          minecraft_home: /srv/minecraft
+          minecraft_version: 26.1.2
+          minecraft_java_package: openjdk-25-jre-headless
+          minecraft_accept_eula: true
+          EOF
+
+      - name: Provision droplet
+        run: pipenv run ansible-playbook playbooks/create.yml
+
+      - name: Read droplet IP from inventory
+        id: droplet
+        run: |
+          IP=$(awk '/ansible_ssh_host=/ {for(i=1;i<=NF;i++) if($i ~ /^ansible_ssh_host=/) {sub(/^ansible_ssh_host=/, "", $i); print $i}}' inventory)
+          echo "ip=${IP}" >> "$GITHUB_OUTPUT"
+
+      - name: Write workflow summary
+        env:
+          DNSIMPLE_DOMAIN: ${{ secrets.DNSIMPLE_DOMAIN }}
+        run: |
+          {
+            echo "## Minecraft server provisioned"
+            echo
+            echo "- **FQDN:** \`minecraft.${DNSIMPLE_DOMAIN}\`"
+            echo "- **IP:** \`${{ steps.droplet.outputs.ip }}\`"
+            echo "- **Region:** \`${{ inputs.region }}\`"
+            echo "- **Size:** \`${{ inputs.size }}\`"
+            echo "- **Auto-destroy after:** ${{ inputs.duration_hours }}h (\`${{ steps.expiry.outputs.human }}\`)"
+            echo "- **Connect:** \`minecraft.${DNSIMPLE_DOMAIN}:25565\`"
+          } >> "$GITHUB_STEP_SUMMARY"

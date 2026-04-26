@@ -28,6 +28,7 @@
         ssh_keys:
           - "{{ public_key_create.data.ssh_key.id }}"
         name: "{{ server.name }}"
+        tags: "{{ server.tags | default(omit) }}"
         unique_name: yes
         wait: yes
       register: server_create

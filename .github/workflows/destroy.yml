@@ -1,0 +1,100 @@
+name: Destroy Minecraft server
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: minecraft-server
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    environment: minecraft-server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipenv and Ansible deps
+        run: |
+          pip install -U -r requirements.txt
+          pipenv install
+          pipenv run ansible-galaxy install -r requirements.yml
+
+      - name: Write SSH keypair
+        env:
+          ANSIBLE_SSH_PRIVATE_KEY: ${{ secrets.ANSIBLE_SSH_PRIVATE_KEY }}
+          ANSIBLE_SSH_PUBLIC_KEY: ${{ secrets.ANSIBLE_SSH_PUBLIC_KEY }}
+        run: |
+          mkdir -p keys
+          printf '%s\n' "$ANSIBLE_SSH_PRIVATE_KEY" > keys/ansible
+          printf '%s\n' "$ANSIBLE_SSH_PUBLIC_KEY" > keys/ansible.pub
+          chmod 600 keys/ansible
+          chmod 644 keys/ansible.pub
+
+      - name: Generate vars/credentials.yml
+        env:
+          DO_API_KEY: ${{ secrets.DO_API_KEY }}
+          DNSIMPLE_ACCOUNT_EMAIL: ${{ secrets.DNSIMPLE_ACCOUNT_EMAIL }}
+          DNSIMPLE_ACCOUNT_API_TOKEN: ${{ secrets.DNSIMPLE_ACCOUNT_API_TOKEN }}
+        run: |
+          mkdir -p vars
+          cat > vars/credentials.yml <<EOF
+          ---
+          credentials:
+            digital_ocean:
+              api_key: "${DO_API_KEY}"
+            dnsimple:
+              account_email: "${DNSIMPLE_ACCOUNT_EMAIL}"
+              account_api_token: "${DNSIMPLE_ACCOUNT_API_TOKEN}"
+          EOF
+          chmod 600 vars/credentials.yml
+
+      - name: Generate vars/server.yml
+        env:
+          DNSIMPLE_DOMAIN: ${{ secrets.DNSIMPLE_DOMAIN }}
+        run: |
+          cat > vars/server.yml <<EOF
+          ---
+          server:
+            ssh_key_name: "Minecraft CI"
+            name: minecraft
+          volume:
+            name: minecraft-data
+          dns:
+            domain: "${DNSIMPLE_DOMAIN}"
+            hostname: minecraft
+            ttl: 300
+          minecraft_home: /srv/minecraft
+          EOF
+
+      - name: Reconstruct inventory from DO API
+        env:
+          DO_API_KEY: ${{ secrets.DO_API_KEY }}
+        run: |
+          IP=$(curl -fsS -H "Authorization: Bearer ${DO_API_KEY}" \
+            'https://api.digitalocean.com/v2/droplets?name=minecraft' \
+            | jq -r '.droplets[0].networks.v4[] | select(.type=="public") | .ip_address')
+          if [ -z "$IP" ] || [ "$IP" = "null" ]; then
+            echo "No live droplet named 'minecraft' — nothing to destroy."
+            exit 0
+          fi
+          echo "minecraft ansible_ssh_host=${IP} ansible_ssh_user=root" > inventory
+
+      - name: Destroy droplet
+        run: |
+          if [ ! -f inventory ]; then
+            echo "Skipping — no inventory."
+            exit 0
+          fi
+          pipenv run ansible-playbook playbooks/destroy.yml
