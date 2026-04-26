@@ -127,7 +127,7 @@ Three workflows under `.github/workflows/` let anyone with repo write access spi
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `provision.yml` | Manual (`workflow_dispatch`) | Create droplet, attach `minecraft-data` volume, install server. Inputs: region, size, `duration_hours` (used for auto-destroy). |
+| `provision.yml` | Manual (`workflow_dispatch`) | Create droplet, attach `minecraft-data` volume, install server. Inputs: region, size, `duration_hours` (used for auto-destroy), `world` (lowercase letters / digits / hyphens — drives both the DNS hostname `<world>.minecraft.<domain>` and Minecraft's `level-name`, so each world keeps its own subdirectory on the persistent volume). |
 | `destroy.yml` | Manual (`workflow_dispatch`) | Stop service, unmount volume, destroy droplet, remove DNS record. |
 | `auto-destroy.yml` | Cron (`*/15 * * * *`) | Inspect live droplet's `expires-<unix>` tag and run the destroy flow once the TTL has passed. |
 

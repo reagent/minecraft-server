@@ -60,9 +60,34 @@ jobs:
           EOF
           chmod 600 vars/credentials.yml
 
+      - name: Look up droplet + world tag
+        id: droplet
+        env:
+          DO_API_KEY: ${{ secrets.DO_API_KEY }}
+        run: |
+          DROPLET=$(curl -fsS -H "Authorization: Bearer ${DO_API_KEY}" \
+            'https://api.digitalocean.com/v2/droplets?name=minecraft' \
+            | jq '.droplets[0]')
+          if [ "$DROPLET" = "null" ] || [ -z "$DROPLET" ]; then
+            echo "No live droplet named 'minecraft' — nothing to destroy."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          IP=$(echo "$DROPLET" | jq -r '.networks.v4[] | select(.type=="public") | .ip_address')
+          WORLD=$(echo "$DROPLET" | jq -r '.tags[] | select(startswith("world-"))' | sed 's/^world-//' | head -1)
+          if [ -z "$WORLD" ] || [ "$WORLD" = "null" ]; then
+            echo "::warning::Droplet has no world-<name> tag; DNS A record may not be cleaned up."
+            WORLD=""
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "ip=${IP}" >> "$GITHUB_OUTPUT"
+          echo "world=${WORLD}" >> "$GITHUB_OUTPUT"
+
       - name: Generate vars/server.yml
+        if: steps.droplet.outputs.found == 'true'
         env:
           DNSIMPLE_DOMAIN: ${{ secrets.DNSIMPLE_DOMAIN }}
+          WORLD: ${{ steps.droplet.outputs.world }}
         run: |
           cat > vars/server.yml <<EOF
           ---
@@ -73,28 +98,15 @@ jobs:
             name: minecraft-data
           dns:
             domain: "${DNSIMPLE_DOMAIN}"
-            hostname: minecraft-server
+            hostname: "${WORLD}.minecraft"
             ttl: 300
           minecraft_home: /srv/minecraft
           EOF
 
-      - name: Reconstruct inventory from DO API
-        env:
-          DO_API_KEY: ${{ secrets.DO_API_KEY }}
-        run: |
-          IP=$(curl -fsS -H "Authorization: Bearer ${DO_API_KEY}" \
-            'https://api.digitalocean.com/v2/droplets?name=minecraft' \
-            | jq -r '.droplets[0].networks.v4[] | select(.type=="public") | .ip_address')
-          if [ -z "$IP" ] || [ "$IP" = "null" ]; then
-            echo "No live droplet named 'minecraft' — nothing to destroy."
-            exit 0
-          fi
-          echo "minecraft ansible_ssh_host=${IP} ansible_ssh_user=root" > inventory
+      - name: Build inventory
+        if: steps.droplet.outputs.found == 'true'
+        run: echo "minecraft ansible_ssh_host=${{ steps.droplet.outputs.ip }} ansible_ssh_user=root" > inventory
 
       - name: Destroy droplet
-        run: |
-          if [ ! -f inventory ]; then
-            echo "Skipping — no inventory."
-            exit 0
-          fi
-          ansible-playbook playbooks/destroy.yml
+        if: steps.droplet.outputs.found == 'true'
+        run: ansible-playbook playbooks/destroy.yml
