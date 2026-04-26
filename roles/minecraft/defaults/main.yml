@@ -1,0 +1,8 @@
+---
+minecraft_user: minecraft
+minecraft_group: minecraft
+minecraft_java_package: openjdk-21-jre-headless
+minecraft_memory: 1G
+minecraft_accept_eula: false
+minecraft_version_manifest_url: https://launchermeta.mojang.com/mc/game/version_manifest_v2.json
+minecraft_server_properties: {}

@@ -1,0 +1,9 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Restart minecraft
+  ansible.builtin.service:
+    name: minecraft
+    state: restarted
