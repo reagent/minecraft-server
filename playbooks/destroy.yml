@@ -33,9 +33,9 @@
       delegate_to: localhost
 
     - name: Remove hostname from DNSimple
-      dnsimple:
-        account_email: "{{ credentials.dnsimple.email }}"
-        account_api_token: "{{ credentials.dnsimple.api_key }}"
+      community.general.dnsimple:
+        account_email: "{{ credentials.dnsimple.account_email }}"
+        account_api_token: "{{ credentials.dnsimple.account_api_token }}"
         domain: "{{ dns.domain }}"
         record: "{{ dns.hostname | default(server.name) }}"
         type: A
@@ -47,5 +47,5 @@
         - dns.domain is defined
         - credentials is defined
         - credentials.dnsimple is defined
-        - credentials.dnsimple.email is defined
-        - credentials.dnsimple.api_key is defined
+        - credentials.dnsimple.account_email is defined
+        - credentials.dnsimple.account_api_token is defined
