@@ -81,9 +81,15 @@ See the [DigitalOcean size slugs reference](https://slugs.do-api.dev/) for other
 
 ### Minecraft Server Configuration
 
-You can also tweak your Minecraft server settings based on the variables provided by the included Ansible role:
+The Minecraft server is configured by a local Ansible role at `roles/minecraft/`. The variables you typically set in `vars/server.yml` are:
 
-See the documentation for the [`devops-coop.minecraft` Ansible role](https://github.com/devops-coop/ansible-minecraft#role-variables) for all available options.
+```yaml
+minecraft_home: /srv/minecraft
+minecraft_version: 1.21.4
+minecraft_accept_eula: true  # https://www.minecraft.net/en-us/eula
+```
+
+`minecraft_accept_eula` must be `true` — the role asserts it before doing any other work. See `roles/minecraft/defaults/main.yml` for additional knobs (Java package, JVM heap size, user/group names).
 
 ### Configuring DNS Records (Optional)
 

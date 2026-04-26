@@ -1,0 +1,114 @@
+---
+- name: Verify EULA acceptance
+  ansible.builtin.assert:
+    that: minecraft_accept_eula | bool
+    fail_msg: >-
+      Set `minecraft_accept_eula: true` in vars/server.yml to accept the
+      Minecraft EULA (https://www.minecraft.net/en-us/eula).
+
+- name: Install Java runtime
+  ansible.builtin.apt:
+    name: "{{ minecraft_java_package }}"
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Create minecraft group
+  ansible.builtin.group:
+    name: "{{ minecraft_group }}"
+    system: yes
+
+- name: Create minecraft user
+  ansible.builtin.user:
+    name: "{{ minecraft_user }}"
+    group: "{{ minecraft_group }}"
+    home: "{{ minecraft_home }}"
+    shell: /usr/sbin/nologin
+    system: yes
+    create_home: no
+
+- name: Ensure minecraft_home exists
+  ansible.builtin.file:
+    path: "{{ minecraft_home }}"
+    state: directory
+    owner: "{{ minecraft_user }}"
+    group: "{{ minecraft_group }}"
+    mode: "0755"
+
+- name: Fetch Minecraft version manifest
+  ansible.builtin.uri:
+    url: "{{ minecraft_version_manifest_url }}"
+    return_content: yes
+  register: minecraft_manifest
+  check_mode: no
+
+- name: Resolve version metadata URL
+  ansible.builtin.set_fact:
+    minecraft_version_url: >-
+      {{ (minecraft_manifest.json.versions
+          | selectattr('id', 'equalto', minecraft_version)
+          | list | first).url }}
+
+- name: Fetch version metadata
+  ansible.builtin.uri:
+    url: "{{ minecraft_version_url }}"
+    return_content: yes
+  register: minecraft_version_meta
+  check_mode: no
+
+- name: Download server.jar
+  ansible.builtin.get_url:
+    url: "{{ minecraft_version_meta.json.downloads.server.url }}"
+    checksum: "sha1:{{ minecraft_version_meta.json.downloads.server.sha1 }}"
+    dest: "{{ minecraft_home }}/server.jar"
+    owner: "{{ minecraft_user }}"
+    group: "{{ minecraft_group }}"
+    mode: "0644"
+  notify: Restart minecraft
+
+- name: Write EULA acceptance
+  ansible.builtin.copy:
+    dest: "{{ minecraft_home }}/eula.txt"
+    content: "eula=true\n"
+    owner: "{{ minecraft_user }}"
+    group: "{{ minecraft_group }}"
+    mode: "0644"
+
+- name: Ensure server.properties exists
+  ansible.builtin.file:
+    path: "{{ minecraft_home }}/server.properties"
+    state: touch
+    owner: "{{ minecraft_user }}"
+    group: "{{ minecraft_group }}"
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve
+
+- name: Configure managed server.properties keys
+  ansible.builtin.lineinfile:
+    path: "{{ minecraft_home }}/server.properties"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value | lower if item.value is boolean else item.value }}"
+    owner: "{{ minecraft_user }}"
+    group: "{{ minecraft_group }}"
+    mode: "0644"
+  loop: "{{ minecraft_server_properties | dict2items }}"
+  notify: Restart minecraft
+
+- name: Install systemd unit
+  ansible.builtin.template:
+    src: minecraft.service.j2
+    dest: /etc/systemd/system/minecraft.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart minecraft
+
+- name: Enable and start minecraft
+  ansible.builtin.systemd:
+    name: minecraft
+    enabled: yes
+    state: started
+    daemon_reload: yes

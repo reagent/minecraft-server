@@ -15,4 +15,6 @@ volume:
 #   ttl: 300
 
 minecraft_home: /srv/minecraft
-minecraft_version: 1.12.2
+minecraft_version: 26.1.2
+minecraft_java_package: openjdk-25-jre-headless
+minecraft_accept_eula: true  # https://www.minecraft.net/en-us/eula

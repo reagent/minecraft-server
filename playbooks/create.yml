@@ -122,4 +122,4 @@
         fstype: ext4
 
   roles:
-    - devops-coop.minecraft
+    - minecraft

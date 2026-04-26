@@ -1,0 +1,18 @@
+[Unit]
+Description=Minecraft server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ minecraft_user }}
+Group={{ minecraft_group }}
+WorkingDirectory={{ minecraft_home }}
+ExecStart=/usr/bin/java -Xms{{ minecraft_memory }} -Xmx{{ minecraft_memory }} -jar {{ minecraft_home }}/server.jar nogui
+Restart=on-failure
+RestartSec=10
+SuccessExitStatus=0 1 130 143
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
