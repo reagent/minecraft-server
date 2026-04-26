@@ -1,2 +1,9 @@
-- src: devops-coop.minecraft
-  version: v3.1.0
+---
+collections:
+  - name: community.digitalocean
+  - name: community.general
+  - name: ansible.posix
+
+roles:
+  - src: devops-coop.minecraft
+    version: v3.1.0

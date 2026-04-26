@@ -19,4 +19,3 @@ setup: init
 	pip install -U -r requirements.txt
 	pipenv install
 	pipenv run ansible-galaxy install -r requirements.yml
-	pipenv run ansible-galaxy collection install -r collections/requirements.yml
