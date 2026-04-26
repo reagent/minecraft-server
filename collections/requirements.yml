@@ -1,5 +1,0 @@
----
-collections:
-  - name: community.digitalocean
-  - name: community.general
-  - name: ansible.posix
