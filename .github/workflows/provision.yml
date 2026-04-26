@@ -35,6 +35,11 @@ on:
           - "8"
           - "12"
           - "24"
+      world:
+        description: World name (lowercase letters, digits, hyphens; 1-30 chars)
+        required: true
+        default: world
+        type: string
 
 concurrency:
   group: minecraft-server
@@ -63,6 +68,15 @@ jobs:
           pip install -U pip
           pip install 'ansible-core~=2.18' dnsimple
           ansible-galaxy install -r requirements.yml
+
+      - name: Validate world name
+        env:
+          WORLD: ${{ inputs.world }}
+        run: |
+          if ! [[ "$WORLD" =~ ^[a-z0-9]([a-z0-9-]{0,28}[a-z0-9])?$ ]]; then
+            echo "::error::World name '${WORLD}' is invalid. Must be 1-30 chars, lowercase letters/digits/hyphens, no leading or trailing hyphen."
+            exit 1
+          fi
 
       - name: Compute expiry timestamp
         id: expiry
@@ -109,6 +123,7 @@ jobs:
           SIZE: ${{ inputs.size }}
           DURATION_HOURS: ${{ inputs.duration_hours }}
           EXPIRES_AT: ${{ steps.expiry.outputs.epoch }}
+          WORLD: ${{ inputs.world }}
         run: |
           cat > vars/server.yml <<EOF
           ---
@@ -122,17 +137,20 @@ jobs:
               - ansible-on-demand
               - ttl-${DURATION_HOURS}h
               - expires-${EXPIRES_AT}
+              - world-${WORLD}
           volume:
             block_size: 10
             name: minecraft-data
           dns:
             domain: "${DNSIMPLE_DOMAIN}"
-            hostname: minecraft-server
+            hostname: "${WORLD}.minecraft"
             ttl: 300
           minecraft_home: /srv/minecraft
           minecraft_version: 26.1.2
           minecraft_java_package: openjdk-25-jre-headless
           minecraft_accept_eula: true
+          minecraft_server_properties:
+            level-name: "${WORLD}"
           EOF
 
       - name: Provision droplet
@@ -147,14 +165,17 @@ jobs:
       - name: Write workflow summary
         env:
           DNSIMPLE_DOMAIN: ${{ secrets.DNSIMPLE_DOMAIN }}
+          WORLD: ${{ inputs.world }}
         run: |
+          FQDN="${WORLD}.minecraft.${DNSIMPLE_DOMAIN}"
           {
             echo "## Minecraft server provisioned"
             echo
-            echo "- **FQDN:** \`minecraft-server.${DNSIMPLE_DOMAIN}\`"
+            echo "- **World:** \`${WORLD}\`"
+            echo "- **FQDN:** \`${FQDN}\`"
             echo "- **IP:** \`${{ steps.droplet.outputs.ip }}\`"
             echo "- **Region:** \`${{ inputs.region }}\`"
             echo "- **Size:** \`${{ inputs.size }}\`"
             echo "- **Auto-destroy after:** ${{ inputs.duration_hours }}h (\`${{ steps.expiry.outputs.human }}\`)"
-            echo "- **Connect:** \`minecraft-server.${DNSIMPLE_DOMAIN}:25565\`"
+            echo "- **Connect:** \`${FQDN}:25565\`"
           } >> "$GITHUB_STEP_SUMMARY"
