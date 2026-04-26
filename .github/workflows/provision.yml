@@ -127,7 +127,7 @@ jobs:
             name: minecraft-data
           dns:
             domain: "${DNSIMPLE_DOMAIN}"
-            hostname: minecraft
+            hostname: minecraft-server
             ttl: 300
           minecraft_home: /srv/minecraft
           minecraft_version: 26.1.2
@@ -151,10 +151,10 @@ jobs:
           {
             echo "## Minecraft server provisioned"
             echo
-            echo "- **FQDN:** \`minecraft.${DNSIMPLE_DOMAIN}\`"
+            echo "- **FQDN:** \`minecraft-server.${DNSIMPLE_DOMAIN}\`"
             echo "- **IP:** \`${{ steps.droplet.outputs.ip }}\`"
             echo "- **Region:** \`${{ inputs.region }}\`"
             echo "- **Size:** \`${{ inputs.size }}\`"
             echo "- **Auto-destroy after:** ${{ inputs.duration_hours }}h (\`${{ steps.expiry.outputs.human }}\`)"
-            echo "- **Connect:** \`minecraft.${DNSIMPLE_DOMAIN}:25565\`"
+            echo "- **Connect:** \`minecraft-server.${DNSIMPLE_DOMAIN}:25565\`"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -73,7 +73,7 @@ jobs:
             name: minecraft-data
           dns:
             domain: "${DNSIMPLE_DOMAIN}"
-            hostname: minecraft
+            hostname: minecraft-server
             ttl: 300
           minecraft_home: /srv/minecraft
           EOF
