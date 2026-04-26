@@ -41,8 +41,8 @@ credentials:
   digital_ocean:
     api_key: d34db33f
   dnsimple:
-    email: user@host.com
-    api_key: t0k3n
+    account_email: user@host.com
+    account_api_token: t0k3n
 ```
 
 ## Configuration
