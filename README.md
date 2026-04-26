@@ -71,11 +71,13 @@ Sensible defaults have been chosen for the server creation options, but you can 
 # vars/server.yml
 server:
   ssh_key_name: "Ansible / Minecraft"
-  image_id: ubuntu-16-04-x64
-  region_id: nyc3
-  size_id: 4gb
+  image: ubuntu-22-04-x64
+  region: nyc3
+  size: s-2vcpu-2gb
   name: minecraft
 ```
+
+See the [DigitalOcean size slugs reference](https://slugs.do-api.dev/) for other options. Legacy slugs like `2gb`, `4gb` were retired — use `s-<vcpu>-<ram>` (basic), `g-<vcpu>-<ram>` (general purpose), or other current formats.
 
 ### Minecraft Server Configuration
 
