@@ -9,7 +9,7 @@ Ansible-based toolkit to provision an on-demand Minecraft server on DigitalOcean
 ## Runtime requirements
 
 - Python 3.11+ (pinned via `.python-version`; use `pyenv`). The managed host's Python interpreter is auto-detected by Ansible (no explicit `ansible_python_interpreter` is set); modern Ubuntu images ship Python 3 preinstalled.
-- Ansible `2.6.1` and `dopy 0.3.7` pinned in `Pipfile`. Do not upgrade casually: DigitalOcean modules in later Ansible versions renamed and changed arg shapes (`digital_ocean` → `digital_ocean_droplet`), which will break `playbooks/create.yml` / `playbooks/destroy.yml`.
+- `ansible-core ~=2.18` pinned in `Pipfile`. DigitalOcean and DNSimple modules live in the `community.digitalocean` and `community.general` collections respectively — pinned in `collections/requirements.yml` and installed into the user collections path via `ansible-galaxy collection install` (invoked from `make setup`).
 - `devops-coop.minecraft` role pinned to `v3.1.0` in `requirements.yml`. Role is installed into `vendor/roles/` (see `ansible.cfg` `roles_path`).
 
 ## Common commands
