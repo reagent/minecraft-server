@@ -60,7 +60,6 @@
       add_host:
         name: minecraft
         ansible_ssh_host: "{{ server_create.droplet.ip_address }}"
-        ansible_python_interpreter: /usr/bin/python2.7
       changed_when: False
 
     - name: Register hostname with DNSimple
@@ -88,16 +87,6 @@
         delay: 30
         timeout: 320
         state: started
-
-- hosts: minecraft
-  user: root
-  gather_facts: false
-
-  tasks:
-    - name: Install Python 2.x
-      raw: test -e /usr/bin/python2.7 || (apt update && apt install -y python2.7)
-      register: python_install
-      changed_when: python_install.stdout
 
 - hosts: minecraft
   user: root

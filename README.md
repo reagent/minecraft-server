@@ -4,7 +4,7 @@ This is a basic [Ansible](http://docs.ansible.com/) playbook to create an on-dem
 
 ## Dependencies
 
-* Python 2.7.x
+* Python 3.11+
 
 Installation of Python via [pyenv](https://github.com/pyenv/pyenv) is recommended -- it will automatically use the version specified in `.python-version` once installed.
 
