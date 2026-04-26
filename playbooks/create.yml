@@ -50,6 +50,10 @@
         volume_name: "{{ volume.name }}"
         droplet_id: "{{ server_create.data.droplet.id }}"
 
+    - name: Extract droplet public IPv4 address
+      set_fact:
+        droplet_ip: "{{ (server_create.data.droplet.networks.v4 | selectattr('type', 'equalto', 'public') | first).ip_address }}"
+
     - name: Add new server to static inventory file
       template:
         src: ../templates/inventory.j2
@@ -58,7 +62,7 @@
     - name: Add new server to in-memory inventory
       add_host:
         name: minecraft
-        ansible_ssh_host: "{{ server_create.data.ip_address }}"
+        ansible_ssh_host: "{{ droplet_ip }}"
       changed_when: False
 
     - name: Register hostname with DNSimple
@@ -70,7 +74,7 @@
         type: A
         ttl: "{{ dns.ttl | default(300) }}"
         solo: yes
-        value: "{{ server_create.data.ip_address }}"
+        value: "{{ droplet_ip }}"
         state: present
       when:
         - dns is defined
@@ -81,7 +85,7 @@
 
     - name: Wait for SSH to come up
       wait_for:
-        host: "{{ server_create.data.ip_address }}"
+        host: "{{ droplet_ip }}"
         port: 22 
         delay: 30
         timeout: 320
