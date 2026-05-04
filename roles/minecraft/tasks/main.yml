@@ -6,10 +6,6 @@
       Set `minecraft_accept_eula: true` in vars/server.yml to accept the
       Minecraft EULA (https://www.minecraft.net/en-us/eula).
 
-- name: Wait for cloud-init to finish
-  ansible.builtin.command: cloud-init status --wait
-  changed_when: false
-
 - name: Install Java runtime
   ansible.builtin.apt:
     name: "{{ minecraft_java_package }}"
