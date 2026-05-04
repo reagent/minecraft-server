@@ -6,14 +6,10 @@ on:
       region:
         description: DigitalOcean region
         required: true
-        default: nyc3
+        default: sfo3
         type: choice
         options:
-          - nyc3
           - sfo3
-          - ams3
-          - fra1
-          - sgp1
       size:
         description: Droplet size
         required: true
@@ -36,10 +32,28 @@ on:
           - "12"
           - "24"
       world:
-        description: World name (lowercase letters, digits, hyphens; 1-30 chars)
+        description: World
         required: true
-        default: world
-        type: string
+        default: family
+        type: choice
+        options:
+          - a-brand-new-world
+          - christmas
+          - doggie-love
+          - family
+          - fun
+          - girls
+          - hoover-shared
+          - kbworld
+          - kbworld2
+          - keara-bailey
+          - liam
+          - liam-bailey
+          - liam-tracy
+          - lpmt
+          - mushroom
+          - skyblox
+          - tracy-liam
 
 concurrency:
   group: minecraft-server
@@ -68,15 +82,6 @@ jobs:
           pip install -U pip
           pip install 'ansible-core~=2.18' dnsimple
           ansible-galaxy install -r requirements.yml
-
-      - name: Validate world name
-        env:
-          WORLD: ${{ inputs.world }}
-        run: |
-          if ! [[ "$WORLD" =~ ^[a-z0-9]([a-z0-9-]{0,28}[a-z0-9])?$ ]]; then
-            echo "::error::World name '${WORLD}' is invalid. Must be 1-30 chars, lowercase letters/digits/hyphens, no leading or trailing hyphen."
-            exit 1
-          fi
 
       - name: Compute expiry timestamp
         id: expiry
