@@ -11,5 +11,5 @@ name = "pypi"
 
 [packages]
 
-ansible-core = "~=2.18"
+ansible-core = "~=2.20"
 dnsimple = ">=2.0.0"
